@@ -1,6 +1,6 @@
 # Importing listener ratings
 
-Use independently collected participant-level ratings without conflating semantic scales from different studies. Raw WAVs, sound-pressure calibration, and vehicle-class legality are **not** inferred from subjective labels.
+SemanticAVAS reads participant-level ratings and their questionnaire definitions. The importer retains original semantic scales and exports a normalized table for `SemanticAtlas`.
 
 ## Quick start
 
@@ -15,34 +15,42 @@ semanticavas rank my_import/ratings.csv \
   --output ranked.csv
 ```
 
-First command writes `ratings.csv` and `conversion_manifest.json` with SHA-256 hashes, scale declarations, counts and missing-data policy, plus `coverage_by_stimulus.csv` to reveal incomplete repeated-measures designs. The second uses the existing SemanticAtlas API: it ranks **measured** sounds, not synthetic WAVs that listeners have never rated. Rankings must use legitimate scale widths, explicit target scale directions and meaningful weights. The shown target is purely illustrative.
+Conversion writes `ratings.csv`, `coverage_by_stimulus.csv` and `conversion_manifest.json`. The manifest records scale definitions, row counts, missing-data handling and SHA-256 hashes. The ranking command compares the sounds represented in the ratings table with the declared target. The target shown above is an example.
 
 ## JSON schema
 
-`layout` is `wide` or `long`. All studies declare `scales` explicitly, including `min`, `max`, `direction` (`higher_is_more` or `higher_is_less`). The column mapping contains the participant and stimulus IDs. For wide input each scale maps to one numeric column. For long input map `scale` and `rating`; a `(participant,stimulus[,trial],scale)` cell must be unique. The converter preserves the original scale direction; it does **not** reverse-scale a high score automatically.
+Set `layout` to `wide` or `long`. Define each scale with a `min`, `max` and `direction` (`higher_is_more` or `higher_is_less`). Map participant and stimulus identifiers in `columns`. For wide data, each scale has its own numeric column; for long data, map the `scale` and `rating` columns.
 
-Repeated evaluations are only allowed with `allow_repeated_ratings: true` and an explicit `trial` column. `missing_policy` defaults to `error`; an opt-in `drop_incomplete` drops entire incomplete ratings rows and discloses the number removed. Original `SemanticAtlas` intentionally averages repeated responses within participant-stimulus before giving participants equal weight.
+To import repeated ratings, set `allow_repeated_ratings: true` and identify a `trial` column. The analysis averages repeated trials within participant–stimulus pairs before calculating participant-balanced profiles.
 
-Optional `metadata_csv` relative to the JSON file joins exclusively by an explicitly unique stimulus ID, never spreadsheet row position; optionally set `metadata_stimulus_column`. Acoustic calibration, stimulus origin and measurement conditions should be recorded in the metadata **only if actually known**. `stimulus_metadata.csv` is exported separately.
+The default `missing_policy` is `error`. Select `drop_incomplete` to remove incomplete rows while recording the number removed in the manifest.
+
+An optional `metadata_csv`, relative to the JSON schema, joins on a unique stimulus identifier. Set `metadata_stimulus_column` when that identifier has a different name in the metadata file. Include available stimulus origin, recording conditions and calibration information. Imported stimulus metadata are exported as `stimulus_metadata.csv`.
 
 ## NumPy input
 
-NPZ keys: `ratings` (N,S), `participants` (N), `stimuli` (N), `scales` (S strings), optional `trials` (N). The `scales` strings must exactly match the JSON schema; arbitrary scale order is allowed as long as array columns match those strings. Object/pickle arrays are rejected.
+An NPZ input stores `ratings` (N, S), `participants` (N), `stimuli` (N), `scales` (S strings), and optionally `trials` (N). Array-column order follows the `scales` labels, which must agree with the JSON schema. Use numeric and string arrays.
 
 ```python
 from semanticavas.user_data import convert
-report = convert('my_ratings.npz', 'schema.json', 'analysis_input')
 from semanticavas import SemanticAtlas
 import pandas as pd
-atlas = SemanticAtlas(pd.read_csv('analysis_input/ratings.csv'), ['truck_like','annoying'])
+
+report = convert('my_ratings.npz', 'schema.json', 'analysis_input')
+atlas = SemanticAtlas(
+    pd.read_csv('analysis_input/ratings.csv'),
+    ['truck_like', 'annoying'],
+)
 ```
 
-## Scientific interpretation
-
-Subjective ratings from different protocols are not interchangeable by default (e.g., 1–5 ARAUS soundscape judgments versus 0–100 truck-specific semantic scores). Training/test group splits must be defined by the actual study design; simply parsing IDs does not validate independence. Human listening protocols, audio calibration and approval remain the researcher's responsibility.
-
-A runnable synthetic NumPy example is included:
+The included NumPy example is ready to run:
 
 ```bash
-semanticavas convert examples/step3_user_data/ratings_numpy.npz --schema examples/step3_user_data/schema.json --output-dir converted_numpy
+semanticavas convert examples/step3_user_data/ratings_numpy.npz \
+  --schema examples/step3_user_data/schema.json \
+  --output-dir converted_numpy
 ```
+
+## Measurement context
+
+Preserve the questionnaire meaning, scale range and response direction in study metadata. For example, ARAUSv2 soundscape ratings use 1–5 scales, while vehicle-specific semantic experiments may use 0–100 ratings. Define participant and stimulus group splits from the experimental protocol, and record listening conditions and calibration alongside results.

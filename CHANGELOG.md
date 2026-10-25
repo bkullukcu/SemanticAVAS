@@ -4,7 +4,7 @@
 
 - Added plots of participant-balanced synthetic rating profiles and catalogue target ranking.
 - Added a standalone figure regeneration script, a short FAQ and figure validation tests.
-- Preserved the fixed CI dependency configuration; no change to the semantic ranking algorithm.
+- Kept the existing CI dependencies and semantic ranking implementation.
 
 
 ## 0.8.2 — release candidate

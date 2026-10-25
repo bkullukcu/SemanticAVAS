@@ -1,21 +1,21 @@
-# FAQ
+# Frequently asked questions
 
-**Can I import a questionnaire with different semantic adjectives?**
+**Can I use my own semantic adjectives?**
 
-Yes. List the scales and their numerical limits in the input JSON schema. The software does not guess whether a scale should be inverted or whether two different questionnaires measure the same construct.
+Yes. Define each scale and its numerical range in the JSON schema. Keep the adjective meaning and score direction consistent throughout the study.
 
-**What happens to repeated ratings from one listener?**
+**How are repeated ratings handled?**
 
-Repeated trials require explicit trial IDs during import. `SemanticAtlas` first averages repeats within participant and stimulus, then averages participant profiles. A listener with extra trials should not receive extra weight solely for that reason.
+Declare a trial ID when participants rate a stimulus repeatedly. `SemanticAtlas` averages repeated trials within each participant–stimulus pair, then computes participant-balanced stimulus profiles.
 
-**Can the package choose a sound no one has evaluated?**
+**Which sounds are considered by target matching?**
 
-The standard `rank` method ranks existing, rated sounds. The synthesis helper produces a digital waveform, but its subjective ratings are unknown until tested with listeners.
+The standard ranking evaluates the catalogue for which listener ratings are available. Digital synthesis offers additional candidate waveforms for a subsequent listening experiment.
 
-**Do the plotted confidence intervals describe real listeners?**
+**How are the intervals in the README calculated?**
 
-No. The README uses 18 simulated listener profiles. The intervals illustrate participant-resampling, not a confidence statement about any study population.
+The plotting script simulates 18 listener profiles and resamples listeners to produce pointwise bootstrap intervals. The accompanying synthetic example can be regenerated locally.
 
-**Can I combine the AVAS scales with ARAUS soundscape ratings?**
+**Can ratings from different studies be compared?**
 
-Not directly. Their constructs and ranges differ. Any harmonization must be justified and validated outside the default import workflow.
+Yes, once the questionnaire constructs, scale ranges and score directions have been mapped and justified. Keep the original study definitions in the accompanying metadata.

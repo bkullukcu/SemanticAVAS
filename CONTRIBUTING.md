@@ -4,4 +4,4 @@ Bug reports should include the package version, Python version, the command that
 
 For code changes, open an issue describing the numerical or measurement problem first. Add a test that exercises the change, run `python -m pytest -q`, and document any change to array dimensions, units or statistical assumptions.
 
-The scientific API is under active development; compatibility is not yet guaranteed between minor versions.
+The API follows the research-preview release series. Check the changelog when updating between minor versions.
