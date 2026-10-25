@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "Please cite this software and the original datasets separately."
+title: "SemanticAVAS"
+type: software
+version: 0.8.2
+authors:
+  - family-names: Kullukcu
+    given-names: Berkay
+    orcid: "https://orcid.org/0000-0002-0784-1537"
+  - family-names: Altinsoy
+    given-names: Mehmet Ercan
+license: MIT

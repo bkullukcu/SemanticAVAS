@@ -1,0 +1,22 @@
+{
+  "layout": "wide",
+  "missing_policy": "error",
+  "columns": {
+    "participant": "listener",
+    "stimulus": "sound_id",
+    "truck_like": "heavy_rating",
+    "annoying": "annoying_rating"
+  },
+  "scales": {
+    "truck_like": {
+      "min": 0,
+      "max": 100,
+      "direction": "higher_is_more"
+    },
+    "annoying": {
+      "min": 0,
+      "max": 100,
+      "direction": "higher_is_more"
+    }
+  }
+}

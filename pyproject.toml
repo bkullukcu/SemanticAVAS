@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "semanticavas"
+version = "0.8.2"
+description = "Participant-balanced semantic target selection for measured EV warning sounds, with guarded synthesis interfaces."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = ["numpy>=1.24", "scipy>=1.10", "pandas>=1.5", "matplotlib>=3.6"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+]
+keywords = ["research-software", "reproducibility", "acoustics", "vibration"]
+
+[project.optional-dependencies]
+dev = ["build>=1", "pytest>=7", "twine>=5", "tomli>=2; python_version < '3.11'"]
+docs = ["mkdocs>=1.6"]
+audit = ["openpyxl>=3.1"]
+audio = ["pyfar>=0.7", "mosqito>=1.2"]
+
+external = ["openpyxl>=3.1"]
+evat = ["soundfile>=0.12"]
+araus = ["scikit-learn>=1.2"]
+
+[project.scripts]
+semanticavas = "semanticavas.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

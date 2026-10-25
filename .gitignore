@@ -1,0 +1,27 @@
+# Python and packaging
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+.coverage
+
+# Local data and generated outputs
+example_frfs.npz
+example_reconstruction.npz
+reference.npz
+candidate.npz
+matches.json
+example_ranking.csv
+example_import/
+example_output/
+converted_*/
+*.npz.manifest.json
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
