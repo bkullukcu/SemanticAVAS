@@ -31,8 +31,11 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: pip
+          cache-dependency-path: pyproject.toml
       - name: Install
         run: python -m pip install -e '.[dev]'
+      - name: Verify test dependencies
+        run: python -c "import sklearn, openpyxl, soundfile; print('Test dependencies OK')"
       - name: Tests
         run: python -m pytest -q
       - name: Quickstart
