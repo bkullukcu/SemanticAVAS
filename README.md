@@ -1,30 +1,42 @@
 # SemanticAVAS
 
-**Analysis of perceptual ratings and selection of evaluated vehicle warning sounds.**
+**Listener-based semantic profiling and target matching for vehicle warning sounds.**
 
-SemanticAVAS organizes listener ratings by participant, sound and semantic scale. It builds stimulus profiles, compares them with a specified target and ranks sounds already assessed by listeners. Separate tools produce digital sound prototypes and support analysis of acoustic features. A ranking is not a prediction of how listeners will rate an unheard sound.
+SemanticAVAS groups perceptual ratings by listener and evaluated sound, builds profiles on named semantic scales, and compares those profiles with a user-defined target. The package also includes numerical sound-prototype synthesis and tools for controlled model evaluation. It ranks sounds **that have been rated**; it does not predict the perception or safety performance of an untested sound.
 
-Current version: `v0.8.2` (research-stage API).
+**Research software preview · v0.8.2 · Python 3.10–3.13 · MIT**
 
-## Install
+## Example: from ratings to a sound choice
 
-Use Python 3.10 or newer:
+![Synthetic semantic stimulus profiles with listener-bootstrap intervals](docs/figures/semantic_profiles.svg)
+
+*Illustrative semantic profiles from 18 simulated listeners. Dots are participant-balanced means and whiskers are pointwise bootstrap intervals. No human participant data are included.*
+
+![Synthetic semantic target ranking](docs/figures/target_ranking.svg)
+
+*A two-scale target is compared with four evaluated synthetic sounds; the ranking uses weighted squared distance after explicit scale normalization. This plot demonstrates the decision rule, not preference prediction for a new AVAS design.*
+
+These figures come from [`SemanticAtlas`](src/semanticavas/core.py), not manually assigned ranking results. Regenerate them with `python examples/make_readme_figures.py`.
+
+## Install and check the package
+
+From the repository root:
 
 ```bash
 python -m pip install -e .
 python examples/quickstart.py
 ```
 
-The example creates synthetic ratings and checks the ranking and synthesis routines. To run the test suite:
+The example assembles a small synthetic rating table, ranks its sounds and generates a digital waveform. To run the tests:
 
 ```bash
-python -m pip install -e '.[dev]'
+python -m pip install -e ".[dev]"
 python -m pytest -q
 ```
 
-## Import listener ratings
+## Work with your own ratings
 
-The converter accepts a CSV rating table or an NPZ archive. Scale names, limits and direction are declared in a JSON schema rather than inferred from column labels. The sample below contains synthetic ratings, not participant data from our studies.
+CSV and NumPy input are supported. A JSON schema declares the rating scales, their ranges and direction, and how participant and stimulus identifiers map to columns. No scale direction or conversion between studies is inferred.
 
 ```bash
 semanticavas convert examples/step3_user_data/ratings_wide.csv \
@@ -37,23 +49,39 @@ semanticavas rank example_import/ratings.csv \
   --output example_ranking.csv
 ```
 
-The import creates a normalized ratings file, a coverage table and a conversion manifest. Target values in the example are illustrative. For real ratings, choose targets, scale widths and weights from the actual questionnaire and research question.
+The first command creates a normalized ratings table, a coverage report and a conversion manifest. The second compares the already-evaluated sounds with an illustrative target. [Data import](docs/USER_DATA_IMPORT.md) explains wide and long tables, repeated trials, missing ratings and NPZ inputs.
 
-See [the input guide](docs/USER_DATA_IMPORT.md) for long-format tables, repeated trials, missing ratings and NumPy arrays.
+## The target-matching rule
 
-## Interpretation
+For stimulus $i$ and semantic dimension $k$, `SemanticAtlas.rank` uses
 
-Semantic scales are study-specific. Scores from a 1–5 soundscape questionnaire cannot be treated as if they were 0–100 AVAS ratings. Participant and stimulus identifiers must be preserved to avoid mixing independent and repeated observations. Prototype waveforms and acoustic similarity do not demonstrate perceptual acceptance or regulatory compliance.
+$$
+L_i=\frac{\displaystyle\sum_k w_k\left(\frac{\bar{s}_{ik}-t_k}{r_k}\right)^2}{\displaystyle\sum_k w_k},
+$$
 
-No empirical ratings, audio, or third-party derived tables are included in this repository. The tests and quickstart use synthetic fixtures. See [research notes](docs/RESEARCH_NOTES.md) for the source-study context and limitations.
+where $\bar{s}_{ik}$ is the participant-balanced mean rating, $t_k$ the stated target, $r_k$ an externally specified scale width and $w_k$ a nonnegative weight. Smaller $L_i$ means a closer match **within the evaluated catalogue**. Bootstrap resampling is performed at listener level where the design permits it.
 
-## Repository contents
+The original scale boundaries and questionnaire meanings matter. A soundscape score on a 1–5 scale must not be silently treated as a 0–100 AVAS rating.
 
-- `src/semanticavas/` — semantic analysis, synthesis, validation and import tools
-- `examples/` — synthetic quickstart and example CSV/NPZ inputs
-- `tests/` — unit and regression tests
-- `docs/` — import reference and research notes
+## What is included
+
+- Aggregation of listener ratings and uncertainty summaries.
+- Ranking of previously rated sounds and sensitivity to target weights.
+- Digital harmonic/noise prototype generation and optional data-analysis adapters.
+- CSV/NPZ import with explicit scale and identifier checks.
+
+The public examples are wholly synthetic. Neither original listener ratings nor AVAS audio recordings are redistributed. Synthesized prototypes have not been perceptually validated or shown to comply with a warning-sound regulation. See [Research notes](docs/RESEARCH_NOTES.md) and [FAQ](docs/FAQ.md).
+
+## Reproduce the figures
+
+```bash
+python examples/make_readme_figures.py
+# Optional LaTeX typesetting, if TeX is installed:
+python examples/make_readme_figures.py --latex
+```
+
+The SVGs under `docs/figures/` are generated from the same data and public functions as the script. No external data download is required.
 
 ## Citation and license
 
-See [CITATION.cff](CITATION.cff) for software citation information. Experimental datasets should be cited separately. Code is supplied with an MIT license; institutional authorization must be confirmed before public release. The framework does not contain the original participant-level datasets.
+Citation metadata: [`CITATION.cff`](CITATION.cff). Source license: [`LICENSE`](LICENSE). Please cite any experimental dataset independently. This software is a research preview and its interface may change before version 1.0.
