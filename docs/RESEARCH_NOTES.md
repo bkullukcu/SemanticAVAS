@@ -11,3 +11,7 @@ python examples/reproduce.py --output example_output
 ```
 
 The generated targets provide an explicit numerical reference for the ranking example.
+
+## Acoustic-to-semantic prediction
+
+The prediction module uses ten digital descriptors and a multi-output ridge model. Its validation protocol separates acoustic stimuli across the outer folds and chooses regularization within each training fold. The reported mean absolute errors are tied to the supplied questionnaire, recordings and held-out grouping. Family identifiers should reflect known recording or synthesis relationships.

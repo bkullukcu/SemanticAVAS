@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 — WAV-to-semantic prediction
+
+- Added a trained WAV predictor with a portable NumPy model archive and CLI commands.
+- Added nested sound- or family-held-out evaluation and a training-mean comparison.
+- Added rating-table joins, repeated-listener aggregation, acoustic feature provenance and feature-range diagnostics.
+- Added an end-to-end generated-audio tutorial and predictive-model regression tests.
+
 ## Unreleased — README figures and documentation
 
 - Added plots of participant-balanced synthetic rating profiles and catalogue target ranking.

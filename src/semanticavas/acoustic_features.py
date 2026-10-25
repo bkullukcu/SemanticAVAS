@@ -9,7 +9,11 @@ def features_from_wav_bytes(data, *, max_seconds=5.0):
     fs,wav=wavfile.read(BytesIO(data))
     if wav.ndim not in (1,2) or fs<8000:raise ValueError('unsupported digital PCM shape/sampling rate')
     x=wav.astype(np.float64)
-    if wav.dtype.kind in 'iu':
+    if wav.dtype.kind == 'u':
+        # 8-bit PCM is unsigned; silence is represented by the midpoint.
+        midpoint=(np.iinfo(wav.dtype).max+1)/2
+        x=(x-midpoint)/midpoint
+    elif wav.dtype.kind == 'i':
         scale=max(abs(np.iinfo(wav.dtype).min),np.iinfo(wav.dtype).max)
         x/=scale
     x=x[:min(len(x),int(fs*max_seconds))]

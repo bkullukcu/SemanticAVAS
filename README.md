@@ -1,10 +1,10 @@
 # SemanticAVAS
 
-**Listener-based semantic profiling and target matching for vehicle warning sounds.**
+**Listener-based semantic analysis, target matching and WAV-to-semantic prediction for vehicle warning sounds.**
 
-SemanticAVAS groups perceptual ratings by listener and evaluated sound, builds profiles on named semantic scales, and compares those profiles with a user-defined target. The package also includes numerical sound-prototype synthesis and tools for controlled model evaluation. The target-matching workflow ranks sounds in an evaluated catalogue. New prototypes can then be assessed in a listening study.
+SemanticAVAS groups perceptual ratings by listener and evaluated sound, builds profiles on named semantic scales, and compares those profiles with a user-defined target. The package also includes sound-prototype synthesis and a regression workflow that learns acoustic-to-semantic mappings from paired recordings and listener ratings. Catalogue ranking and prediction use separate evaluation workflows.
 
-**Research software preview · v0.8.2 · Python 3.10–3.13 · MIT**
+**Research software preview · v0.9.0 · Python 3.10–3.13 · MIT**
 
 ## Example: from ratings to a sound choice
 
@@ -68,6 +68,7 @@ Keep the original scale definition for each questionnaire. Cross-study compariso
 - Aggregation of listener ratings and uncertainty summaries.
 - Ranking of previously rated sounds and sensitivity to target weights.
 - Digital harmonic/noise prototype generation and optional data-analysis adapters.
+- WAV-based prediction from listener-scored training sounds, with nested held-out evaluation.
 - CSV/NPZ import with explicit scale and identifier checks.
 
 The repository includes generated rating tables and signal examples. For measured listener responses and audio stimuli, use the respective dataset releases and cite their sources. See [Research notes](docs/RESEARCH_NOTES.md) and [FAQ](docs/FAQ.md).
@@ -85,3 +86,34 @@ The script generates both SVGs in `docs/figures/` using its bundled synthetic in
 ## Citation and license
 
 Software citation: [`CITATION.cff`](CITATION.cff). Code license: [`LICENSE`](LICENSE). Please cite original experimental datasets separately.
+
+## Predict semantic ratings for an unseen WAV
+
+SemanticAVAS can fit a multi-output ridge regression model from sound recordings paired with participant ratings. The predictor uses ten digital-audio descriptors and participant-balanced mean ratings. Model selection and evaluation hold out complete sounds; when `sound_family` is supplied, all sounds from the same family are held out together.
+
+Generate a complete working example with synthetic sounds and rating tables:
+
+```bash
+python examples/prediction_demo.py --output-dir prediction_demo_output
+```
+
+To train on your own recordings, prepare `manifest.csv` with `stimulus,wav,sound_family` and `ratings.csv` with `participant,stimulus` followed by 0–100 semantic rating columns. WAV paths are interpreted relative to the manifest.
+
+```bash
+semanticavas train-predictor \
+  --manifest manifest.csv --ratings ratings.csv \
+  --scales truck_like annoying \
+  --output-dir trained_model
+
+semanticavas predict-wav \
+  --model trained_model/semantic_model.npz new_avas.wav \
+  --output predictions.csv
+```
+
+![Observed and held-out predicted ratings on generated sound prototypes](docs/figures/prediction_validation.svg)
+
+*Synthetic demonstration (16 generated sounds, four held-out sound families). Points compare observed listener means and predictions against a training-mean reference. Reproduce with `python examples/prediction_demo.py` followed by `python examples/plot_prediction_validation.py --table prediction_demo_output/heldout_predictions.csv`.*
+
+Training produces `semantic_model.npz`, `heldout_predictions.csv`, `audio_summary.csv`, and `validation.json`. Prediction reports the estimated rating on each named scale, whether a descriptor exceeds the observed training range, and its distance to the nearest training sound in standardized feature space. The validation report compares held-out mean absolute error against the training-mean baseline and records the 90th-percentile absolute error observed across held-out sounds.
+
+See [WAV prediction](docs/WAV_PREDICTION.md) for data layouts, examples, model interpretation and Python use. The training WAVs and questionnaire scales determine the application domain of the fitted model.

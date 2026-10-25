@@ -19,3 +19,11 @@ The plotting script simulates 18 listener profiles and resamples listeners to pr
 **Can ratings from different studies be compared?**
 
 Yes, once the questionnaire constructs, scale ranges and score directions have been mapped and justified. Keep the original study definitions in the accompanying metadata.
+
+**Can I estimate ratings for a new WAV?**
+
+Yes. Train a WAV predictor from sound recordings paired with listener scores, then run `semanticavas predict-wav` on new recordings. [WAV prediction](WAV_PREDICTION.md) has the commands and table formats.
+
+**How is unseen-sound performance evaluated?**
+
+The predictor reports sound-held-out or family-held-out cross-validation against a training-mean baseline. It also reports feature-range checks for each new WAV.

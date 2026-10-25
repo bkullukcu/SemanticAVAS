@@ -21,6 +21,15 @@ example_output/
 converted_*/
 *.npz.manifest.json
 
+# Locally fitted prediction artifacts
+prediction_demo_output/
+trained_model/
+semantic_model.npz
+heldout_predictions.csv
+audio_summary.csv
+wav_predictions.csv
+predictions.csv
+
 # Editors and OS
 .DS_Store
 .idea/
