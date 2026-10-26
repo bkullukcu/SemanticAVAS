@@ -3,6 +3,7 @@ message: "Please cite this software and the original datasets separately."
 title: "SemanticAVAS"
 type: software
 version: 0.9.0
+doi: 10.5281/zenodo.23661611
 authors:
   - family-names: Kullukcu
     given-names: Berkay
