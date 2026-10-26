@@ -2,6 +2,8 @@
 
 **Listener-based semantic analysis, target matching and WAV-to-semantic prediction for vehicle warning sounds.**
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23661611.svg)](https://doi.org/10.5281/zenodo.23661611)
+
 SemanticAVAS groups perceptual ratings by listener and evaluated sound, builds profiles on named semantic scales, and compares those profiles with a user-defined target. The package also includes sound-prototype synthesis and a regression workflow that learns acoustic-to-semantic mappings from paired recordings and listener ratings. Catalogue ranking and prediction use separate evaluation workflows.
 
 **Research software preview · v0.9.0 · Python 3.10–3.13 · MIT**
