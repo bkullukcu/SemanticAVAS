@@ -133,7 +133,13 @@ class RidgeSurrogate:
 def group_holdout(groups):
     """Leave-one-stimulus/family-out; fit preprocessing inside every split."""
     g=np.asarray(groups)
-    if g.ndim!=1 or len(np.unique(g))<2:raise ValueError('need >=2 groups')
+    if g.ndim!=1 or pd.isna(g).any():
+        raise ValueError('group labels must be a 1D array without missing values')
+    if any(isinstance(key,str) and not key.strip() for key in g):
+        raise ValueError('group labels must not be blank')
+    if g.dtype.kind in 'fc' and not np.isfinite(g).all():
+        raise ValueError('group labels must be finite')
+    if len(np.unique(g))<2:raise ValueError('need >=2 groups')
     for key in np.unique(g):yield np.where(g!=key)[0],np.where(g==key)[0]
 
 
