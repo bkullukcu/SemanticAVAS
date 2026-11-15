@@ -24,6 +24,17 @@ class TestSemantic(unittest.TestCase):
   with self.assertRaises(ValueError):synthesize(cutoff=30000)
  def test_groups(self):
   for a,b in group_holdout(['a','a','b','b']):self.assertFalse(set(a)&set(b))
+ def test_missing_group_label_rejected(self):
+  with self.assertRaisesRegex(ValueError,'missing'):
+   list(group_holdout(np.array(['family_a',None,'family_b'],dtype=object)))
+  with self.assertRaisesRegex(ValueError,'missing'):
+   list(group_holdout(np.array([1.,np.nan,2.])))
+ def test_blank_group_label_rejected(self):
+  with self.assertRaisesRegex(ValueError,'blank'):
+   list(group_holdout(['family_a',' ','family_b']))
+ def test_nonfinite_group_label_rejected(self):
+  with self.assertRaisesRegex(ValueError,'finite'):
+   list(group_holdout(np.array([1.,np.inf,2.])))
  def test_bad_target(self):
   with self.assertRaises(ValueError):SemanticAtlas(self.frame,['truck']).rank({'truck':np.nan})
 if __name__=='__main__':unittest.main()
