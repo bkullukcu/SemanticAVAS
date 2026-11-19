@@ -119,3 +119,30 @@ semanticavas predict-wav \
 Training produces `semantic_model.npz`, `heldout_predictions.csv`, `audio_summary.csv`, and `validation.json`. Prediction reports the estimated rating on each named scale, whether a descriptor exceeds the observed training range, and its distance to the nearest training sound in standardized feature space. The validation report compares held-out mean absolute error against the training-mean baseline and records the 90th-percentile absolute error observed across held-out sounds.
 
 See [WAV prediction](docs/WAV_PREDICTION.md) for data layouts, examples, model interpretation and Python use. The training WAVs and questionnaire scales determine the application domain of the fitted model.
+
+## Scope of the prediction model and SoftwareX peer-review revision
+
+The catalogue path only ranks sounds **already evaluated by listeners**. The
+experimental WAV path can return an estimate for an unrated WAV after it has
+been trained on paired recordings and listener ratings; it has **not** shown
+reliable transfer across independent sound-source groups. In the 35-sound
+study, leave-one-sound-out MAE was 13.41 for ridge and 13.58 for the
+training mean, while source-block MAE was 16.39 versus 15.41. A revised,
+restricted-data comparison with SVR and random forests is documented in
+[peer-review methods](docs/SOFTWAREX_REVIEW_REVISION.md).
+
+The catalogue and WAV ranking APIs now share a 100-point default scale width
+for 0--100 questionnaires. The WAV model also accepts explicit alternative
+rating bounds (for example, 1--5), full-WAV extraction, and explicit
+missing-cell imputation, without changing old model files' default behaviour:
+
+```bash
+semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \\
+  --scales pleasant --scale-bounds '{"pleasant":[1,5]}' \\
+  --missing-policy stimulus_mean --full-recording --output-dir fitted
+```
+
+These options belong to the review branch until merged and released. The
+audio front end is uncalibrated digital audio, not psychoacoustic loudness
+or measured playback SPL. The synthetic tutorial is a software demonstration,
+not empirical evidence of rating prediction.
