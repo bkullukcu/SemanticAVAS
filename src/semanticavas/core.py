@@ -28,17 +28,18 @@ class SemanticAtlas:
         """Weighted squared distance to explicit numeric targets in original units.
 
         scale_ranges supplies external scale widths (e.g. 100 for 0--100).
-        It defaults to one, so equal units should be used or explicit ranges set.
+        It defaults to 100 for 0--100 ratings; give explicit widths for other scales.
         """
         cols=list(target)
         if not cols or not set(cols)<=set(self.scales):raise ValueError('unknown/empty target scales')
         t=np.array([target[c] for c in cols],float)
         w=np.array([1. if weights is None else weights.get(c,1.) for c in cols])
-        r=np.array([1. if scale_ranges is None else scale_ranges[c] for c in cols])
+        r=np.array([100. if scale_ranges is None else scale_ranges[c] for c in cols])
         if not np.isfinite(t).all() or not np.isfinite(w).all() or np.any(w<0) or w.sum()==0 or not np.isfinite(r).all() or np.any(r<=0):
             raise ValueError('invalid target, weights or scale widths')
-        out=self.means.copy();out['target_loss']=np.sum(w*((out[cols].values-t)/r)**2,axis=1)/w.sum()
-        return out.sort_values('target_loss',kind='stable')
+        from .empirical import rank_existing_sounds
+        ranked=rank_existing_sounds(self.means,target,weights=weights,scale_ranges=scale_ranges)
+        return self.means.join(ranked.set_index('stimulus')['target_loss']).sort_values('target_loss',kind='stable')
 
     def intervals(self,n_boot=1000,seed=2026):
         """Pointwise percentile intervals, resampling whole participant profiles.
@@ -77,7 +78,7 @@ class SemanticAtlas:
         if not cols or not set(cols)<=set(scales):raise ValueError("unknown/empty target scales")
         t=np.asarray([target[c] for c in cols],float)
         w=np.asarray([1. if weights is None else weights.get(c,1.) for c in cols],float)
-        r=np.asarray([1. if scale_ranges is None else scale_ranges[c] for c in cols],float)
+        r=np.asarray([100. if scale_ranges is None else scale_ranges[c] for c in cols],float)
         if not (np.isfinite(t).all() and np.isfinite(w).all() and np.isfinite(r).all()) or np.any(w<0) or w.sum()<=0 or np.any(r<=0):
             raise ValueError("invalid targets, weights, scale widths")
         indices=[scales.index(c) for c in cols]
