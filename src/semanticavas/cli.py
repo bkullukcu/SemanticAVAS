@@ -38,9 +38,13 @@ def main(argv=None):
     train = commands.add_parser('train-predictor', help='Fit a WAV-to-semantic ridge predictor')
     train.add_argument('--manifest', required=True, help='CSV: stimulus,wav[,sound_family]')
     train.add_argument('--ratings', required=True, help='CSV: participant,stimulus,<rating scales>')
-    train.add_argument('--scales', nargs='+', required=True, help='0–100 semantic rating columns')
+    train.add_argument('--scales', nargs='+', required=True, help='Named rating columns (0--100 default; use --scale-bounds for others)')
     train.add_argument('--output-dir', required=True)
     train.add_argument('--max-seconds', type=float, default=5.0)
+    train.add_argument('--full-recording', action='store_true',
+                       help='Analyze the full WAV rather than its first five seconds')
+    train.add_argument('--scale-bounds', help='JSON mapping every rating scale to [minimum, maximum]')
+    train.add_argument('--missing-policy', choices=['error', 'stimulus_mean'], default='error')
 
     predict = commands.add_parser('predict-wav', help='Apply a trained model to new WAV files')
     predict.add_argument('--model', required=True)
@@ -63,7 +67,10 @@ def main(argv=None):
     elif a.command == 'train-predictor':
         from .prediction import train_wav_predictor, save_predictor
         model, heldout, audio = train_wav_predictor(
-            a.manifest, a.ratings, a.scales, max_seconds=a.max_seconds)
+            a.manifest, a.ratings, a.scales,
+            max_seconds=None if a.full_recording else a.max_seconds,
+            scale_bounds=None if a.scale_bounds is None else json.loads(a.scale_bounds),
+            missing_policy=a.missing_policy)
         out = Path(a.output_dir)
         out.mkdir(parents=True, exist_ok=True)
         save_predictor(model, out / 'semantic_model.npz')
