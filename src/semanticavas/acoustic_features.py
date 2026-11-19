@@ -16,7 +16,10 @@ def features_from_wav_bytes(data, *, max_seconds=5.0):
     elif wav.dtype.kind == 'i':
         scale=max(abs(np.iinfo(wav.dtype).min),np.iinfo(wav.dtype).max)
         x/=scale
-    x=x[:min(len(x),int(fs*max_seconds))]
+    if max_seconds is not None:
+        if not np.isfinite(max_seconds) or max_seconds <= 0:
+            raise ValueError('max_seconds must be positive or None for full recording')
+        x=x[:min(len(x),int(fs*max_seconds))]
     if x.ndim==1:x=x[:,None]
     if not np.isfinite(x).all() or x.shape[0]<4096:raise ValueError('invalid audio')
     # Per-channel descriptors are averaged; DO NOT phase-cancel stereo channels.
@@ -25,7 +28,9 @@ def features_from_wav_bytes(data, *, max_seconds=5.0):
         sig=x[:,i]
         rms=np.sqrt(np.mean(sig**2))
         if rms<=1e-12:continue
-        freq,psd=welch(sig,fs=fs,nperseg=min(4096,len(sig)),noverlap=2048)
+        # Explicit Welch contract: Hann window, 4096 samples, 50 percent overlap.
+        segment=min(4096,len(sig))
+        freq,psd=welch(sig,fs=fs,window='hann',nperseg=segment,noverlap=segment//2,detrend='constant',scaling='density')
         psd=np.maximum(psd,0)
         valid=(freq>=20)&(freq<=min(10000,fs/2))
         f=freq[valid];p=psd[valid]
@@ -37,6 +42,7 @@ def features_from_wav_bytes(data, *, max_seconds=5.0):
         low=float(v[f<500].sum());mid=float(v[(f>=500)&(f<2000)].sum());high=float(v[f>=2000].sum())
         flat=float(np.exp(np.log(np.maximum(p,1e-20)).mean())/(p.mean()+1e-20))
         crest=float(np.max(abs(sig))/rms)
+        # A per-sample crossing fraction, not crossings per second (fs-dependent).
         zcr=float(np.mean((sig[:-1]<0)!=(sig[1:]<0)))
         chans.append([20*np.log10(rms),cent,spread,roll,low,mid,high,flat,crest,zcr])
     if not chans:raise ValueError('no non-silent channels')
