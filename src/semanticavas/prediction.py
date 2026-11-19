@@ -40,10 +40,10 @@ def _read_wav(path: Path):
     return blob, sha256(blob).hexdigest()
 
 
-def extract_wav(path: str | Path, *, max_seconds: float = 5.0):
+def extract_wav(path: str | Path, *, max_seconds: float | None = 5.0):
     """Return aligned acoustic descriptors and recording metadata for one WAV."""
-    if not (np.isfinite(max_seconds) and max_seconds > 0):
-        raise ValueError('max_seconds must be positive and finite')
+    if max_seconds is not None and not (np.isfinite(max_seconds) and max_seconds > 0):
+        raise ValueError('max_seconds must be positive and finite, or None for the full recording')
     blob, digest = _read_wav(Path(path))
     vector, meta = features_from_wav_bytes(blob, max_seconds=max_seconds)
     x = np.asarray(vector, dtype=float)
@@ -53,7 +53,8 @@ def extract_wav(path: str | Path, *, max_seconds: float = 5.0):
 
 
 def prepare_training(manifest_path: str | Path, ratings_path: str | Path,
-                     scales: Sequence[str], *, max_seconds: float = 5.0):
+                     scales: Sequence[str], *, max_seconds: float | None = 5.0,
+                     scale_bounds: dict | None = None, missing_policy: str = 'error'):
     """Join one WAV per sound to balanced participant ratings.
 
     manifest.csv: stimulus,wav[,sound_family]. Relative WAV paths start at the
@@ -78,12 +79,28 @@ def prepare_training(manifest_path: str | Path, ratings_path: str | Path,
         raise ValueError('Ratings contain empty participant or stimulus IDs')
     if set(ratings['stimulus']) != set(manifest['stimulus']):
         raise ValueError('Exact correspondence between WAV stimuli and rated stimuli is required')
+    if missing_policy not in ('error', 'stimulus_mean'):
+        raise ValueError('missing_policy must be error or stimulus_mean')
+    if scale_bounds is not None and set(scale_bounds) != set(scales):
+        raise ValueError('scale_bounds must cover exactly the selected scales')
+    bounds = {name: (0., 100.) if scale_bounds is None else tuple(scale_bounds[name]) for name in scales}
     for scale in scales:
+        lo, hi = bounds[scale]
+        if not np.isfinite([lo, hi]).all() or lo >= hi:
+            raise ValueError(f'{scale}: invalid declared scale bounds')
         values = pd.to_numeric(ratings[scale], errors='raise').to_numpy(dtype=float)
-        if not np.isfinite(values).all() or np.any((values < 0) | (values > 100)):
-            raise ValueError(f'{scale}: use finite participant ratings on the declared 0–100 scale')
+        if np.isinf(values).any() or np.any((values[np.isfinite(values)] < lo) | (values[np.isfinite(values)] > hi)):
+            raise ValueError(f'{scale}: ratings outside declared scale bounds')
         ratings[scale] = values
     grouped = ratings.groupby(['stimulus', 'participant'], sort=True, as_index=False)[scales].mean()
+    if missing_policy == 'error' and grouped[scales].isna().any().any():
+        raise ValueError('missing ratings: use missing_policy=stimulus_mean explicitly, or repair input')
+    if missing_policy == 'stimulus_mean':
+        for scale in scales:
+            observed_mean = grouped.groupby('stimulus')[scale].transform('mean')
+            grouped[scale] = grouped[scale].fillna(observed_mean)
+        if grouped[scales].isna().any().any():
+            raise ValueError('cannot impute a stimulus-scale with no observed ratings')
     sizes = grouped.groupby('stimulus')['participant'].nunique()
     if (sizes < 2).any():
         raise ValueError('At least two distinct listeners per sound are required')
@@ -144,8 +161,9 @@ class WavSemanticPredictor:
     min_features: np.ndarray
     max_features: np.ndarray
     alpha: float
-    max_seconds: float
+    max_seconds: float | None
     validation: dict
+    scale_bounds: dict | None = None
 
     def predict_features(self, x):
         x = _matrix(x, 'features')
@@ -154,13 +172,16 @@ class WavSemanticPredictor:
         z = (x - self.x_mean) / self.x_scale
         raw = z @ self.coefficients + self.y_mean
         nearest = np.min(np.sqrt(np.sum((z[:, None, :] - self.reference_z[None, :, :]) ** 2, axis=-1)), axis=1)
+        limits = self.scale_bounds or {name: (0., 100.) for name in self.scales}
+        lower = np.asarray([limits[name][0] for name in self.scales])
+        upper = np.asarray([limits[name][1] for name in self.scales])
         out = []
         for i in range(len(x)):
-            item = {name: float(value) for name, value in zip(self.scales, np.clip(raw[i], 0, 100))}
+            item = {name: float(value) for name, value in zip(self.scales, np.clip(raw[i], lower, upper))}
             item.update({
                 'outside_training_feature_ranges': bool(np.any((x[i] < self.min_features) | (x[i] > self.max_features))),
                 'nearest_training_distance_standardized': float(nearest[i]),
-                'prediction_clipped_to_rating_scale': bool(np.any((raw[i] < 0) | (raw[i] > 100))),
+                'prediction_clipped_to_rating_scale': bool(np.any((raw[i] < lower) | (raw[i] > upper))),
             })
             out.append(item)
         return out
@@ -173,7 +194,8 @@ class WavSemanticPredictor:
                 'cv_abs_error_p90_by_scale': self.validation['cv_abs_error_p90_by_scale']}
 
 
-def train_wav_predictor(manifest_path, ratings_path, scales, *, max_seconds=5.0, alphas=ALPHAS):
+def train_wav_predictor(manifest_path, ratings_path, scales, *, max_seconds=5.0, alphas=ALPHAS,
+                        scale_bounds=None, missing_policy='error'):
     """Train, perform nested sound/family-held-out evaluation, and return artifacts.
 
     Output: (fitted_model, per_sound_validation_table, per_sound_audio_summary).
@@ -181,14 +203,19 @@ def train_wav_predictor(manifest_path, ratings_path, scales, *, max_seconds=5.0,
     alphas = tuple(float(a) for a in alphas)
     if not alphas or any(not np.isfinite(a) or a <= 0 for a in alphas):
         raise ValueError('All ridge alphas must be strictly positive')
-    x, y, groups, audio_table = prepare_training(manifest_path, ratings_path, scales, max_seconds=max_seconds)
+    x, y, groups, audio_table = prepare_training(
+        manifest_path, ratings_path, scales, max_seconds=max_seconds,
+        scale_bounds=scale_bounds, missing_policy=missing_policy)
     if groups is None:
         cv_pred, cv_baseline, cv_alpha = nested_leave_one_sound_out(x, y, alpha_grid=alphas)
         cv_method = 'nested_leave_one_sound_out'
     else:
         cv_pred, cv_baseline, cv_alpha = nested_leave_one_group_out(x, y, groups, alpha_grid=alphas)
         cv_method = 'nested_leave_one_family_out'
-    cv_pred = np.clip(cv_pred, 0, 100)
+    limits = {name: (0., 100.) if scale_bounds is None else tuple(scale_bounds[name]) for name in scales}
+    lower = np.asarray([limits[name][0] for name in scales])
+    upper = np.asarray([limits[name][1] for name in scales])
+    cv_pred = np.clip(cv_pred, lower, upper)
     absolute = np.abs(cv_pred - y)
     baseline_absolute = np.abs(cv_baseline - y)
     scale_names = tuple(str(s) for s in scales)
@@ -204,6 +231,9 @@ def train_wav_predictor(manifest_path, ratings_path, scales, *, max_seconds=5.0,
         'mean_cv_mae': float(absolute.mean()),
         'mean_baseline_cv_mae': float(baseline_absolute.mean()),
         'training_sample_rates_hz': sorted(set(audio_table['sampling_rate_hz'].astype(int).tolist())),
+        'scale_bounds': {name: list(limits[name]) for name in scales},
+        'missing_policy': missing_policy,
+        'feature_extractor_full_recording': max_seconds is None,
     }
     alpha = _choose_alpha(x, y, groups, alphas)
     x_mean = x.mean(axis=0)
@@ -213,7 +243,8 @@ def train_wav_predictor(manifest_path, ratings_path, scales, *, max_seconds=5.0,
     y_mean = y.mean(axis=0)
     coefficients = np.linalg.solve(z.T @ z + alpha * np.eye(z.shape[1]), z.T @ (y - y_mean))
     model = WavSemanticPredictor(scale_names, x_mean, x_scale, y_mean, coefficients,
-                                 z, x.min(axis=0), x.max(axis=0), alpha, float(max_seconds), metrics)
+                                 z, x.min(axis=0), x.max(axis=0), alpha,
+                                 None if max_seconds is None else float(max_seconds), metrics, limits)
     oof = pd.DataFrame({'stimulus': audio_table['stimulus']})
     if groups is not None:
         oof['sound_family'] = groups
@@ -229,7 +260,8 @@ def save_predictor(model: WavSemanticPredictor, path: str | Path):
     """Portable, pickle-free NPZ with an explicit feature schema and diagnostics."""
     metadata = {'format_version': FORMAT_VERSION, 'feature_names': list(FEATURE_NAMES),
                 'scales': list(model.scales), 'alpha': model.alpha,
-                'max_seconds': model.max_seconds, 'validation': model.validation}
+                'max_seconds': model.max_seconds, 'validation': model.validation,
+                'scale_bounds': {name: list(bounds) for name, bounds in (model.scale_bounds or {}).items()}}
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     np.savez_compressed(path, metadata=np.asarray(json.dumps(metadata, sort_keys=True)),
@@ -261,9 +293,17 @@ def load_predictor(path: str | Path):
         np.any(arrays['x_scale'] <= 0) or
         np.any(arrays['min_features'] > arrays['max_features'])):
         raise ValueError('Invalid model array shapes or values')
-    if not np.isfinite(metadata['alpha']) or metadata['alpha'] <= 0 or not np.isfinite(metadata['max_seconds']) or metadata['max_seconds'] <= 0:
+    seconds = metadata['max_seconds']
+    if (not np.isfinite(metadata['alpha']) or metadata['alpha'] <= 0 or
+        (seconds is not None and (not np.isfinite(seconds) or seconds <= 0))):
         raise ValueError('Invalid model configuration')
+    bounds = metadata.get('scale_bounds') or {name: [0., 100.] for name in scales}
+    if set(bounds) != set(scales) or any(
+        len(bounds[name]) != 2 or not np.isfinite(bounds[name]).all() or
+        bounds[name][0] >= bounds[name][1] for name in scales):
+        raise ValueError('Invalid rating scale bounds in model archive')
     return WavSemanticPredictor(tuple(scales), arrays['x_mean'], arrays['x_scale'],
             arrays['y_mean'], arrays['coefficients'], arrays['reference_z'],
             arrays['min_features'], arrays['max_features'], float(metadata['alpha']),
-            float(metadata['max_seconds']), metadata['validation'])
+            None if seconds is None else float(seconds), metadata['validation'],
+            {name: tuple(bounds[name]) for name in scales})
