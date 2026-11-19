@@ -90,7 +90,7 @@ def prepare_training(manifest_path: str | Path, ratings_path: str | Path,
             raise ValueError(f'{scale}: invalid declared scale bounds')
         values = pd.to_numeric(ratings[scale], errors='raise').to_numpy(dtype=float)
         if np.isinf(values).any() or np.any((values[np.isfinite(values)] < lo) | (values[np.isfinite(values)] > hi)):
-            raise ValueError(f'{scale}: ratings outside declared scale bounds')
+            raise ValueError(f'{scale}: ratings outside declared {lo:g}–{hi:g} scale bounds')
         ratings[scale] = values
     grouped = ratings.groupby(['stimulus', 'participant'], sort=True, as_index=False)[scales].mean()
     if missing_policy == 'error' and grouped[scales].isna().any().any():
