@@ -4,6 +4,7 @@ The predicted target is a scene's listener-mean score, not an individual
 response. Design-factor prediction is separate from waveform prediction.
 """
 from __future__ import annotations
+from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
@@ -126,3 +127,86 @@ def nested_scene_cv(x, y, groups=None, *, alphas=DEFAULT_ALPHAS):
         baseline[test] = y[train].mean(axis=0)
         selected[test] = best
     return oof, baseline, selected
+
+
+def encode_scene_design(scenes):
+    """Encode supported scene descriptors for prediction without listener data."""
+    frame = pd.DataFrame(scenes).copy()
+    required = {'scene_type', 'detuning_cents', 'offset_s', 'geometry', 'spatial_variant'}
+    if not required.issubset(frame):
+        raise ValueError('Missing scene-design columns')
+    if (not frame['scene_type'].isin(['single', 'pair', 'identity_pair']).all() or
+        not frame['geometry'].isin(['G0_LEFT_RIGHT', 'G45_DIAGONAL']).all() or
+        not frame['spatial_variant'].isin(['single', 'A', 'B']).all()):
+        raise ValueError('Unsupported scene design')
+    raw = frame['detuning_cents']
+    det = pd.to_numeric(raw, errors='coerce')
+    off = pd.to_numeric(frame['offset_s'], errors='raise')
+    if (det.isna().sum()!=raw.isna().sum() or np.isinf(det).any() or
+        (det < 0).any() or not np.isfinite(off).all() or (off < 0).any()):
+        raise ValueError('Invalid scene-design numeric descriptors')
+    dv = det.to_numpy(float)
+    return np.column_stack([
+        np.log1p(np.nan_to_num(dv,nan=0.0)), np.isnan(dv).astype(float),
+        off.to_numpy(float), frame['geometry'].eq('G45_DIAGONAL').to_numpy(float),
+        frame['scene_type'].eq('single').to_numpy(float),
+        frame['scene_type'].eq('identity_pair').to_numpy(float),
+        frame['spatial_variant'].eq('B').to_numpy(float),
+    ])
+
+
+@dataclass(frozen=True)
+class SceneDesignPredictor:
+    """Fitted scene-parameter model predicting population-mean semantic scores."""
+    scales: tuple[str, ...]
+    x_mean: np.ndarray
+    x_std: np.ndarray
+    y_mean: np.ndarray
+    coefficients: np.ndarray
+    alpha: float
+
+    def predict_features(self, x):
+        x = np.asarray(x, dtype=float)
+        if x.ndim != 2 or x.shape[1] != len(SCENE_FEATURES) or not np.isfinite(x).all():
+            raise ValueError('Expected finite scene descriptors in SCENE_FEATURES order')
+        return np.clip((x-self.x_mean)/self.x_std @ self.coefficients + self.y_mean, 0, 100)
+
+    def predict_scenes(self, scenes):
+        return pd.DataFrame(self.predict_features(encode_scene_design(scenes)), columns=self.scales)
+
+
+def fit_scene_predictor(x, y, scales, *, groups=None, alphas=DEFAULT_ALPHAS):
+    """Select regularization by inner holdout and fit a final all-scene model."""
+    x=np.asarray(x, dtype=float)
+    y=np.asarray(y, dtype=float)
+    scales=tuple(scales)
+    if (x.ndim!=2 or x.shape[1]!=len(SCENE_FEATURES) or y.ndim!=2 or
+        y.shape!=(len(x),len(scales)) or len(x)<8 or len(scales)<1 or
+        len(set(scales)) != len(scales) or not np.isfinite(x).all() or
+        not np.isfinite(y).all() or np.any(y<0) or np.any(y>100)):
+        raise ValueError('Invalid scene features or semantic target matrix')
+    if groups is not None:
+        groups=np.asarray(groups)
+        if groups.shape!=(len(x),) or pd.isna(groups).any() or len(set(groups))<3:
+            raise ValueError('At least three scene design families are required')
+    grid=tuple(float(a) for a in alphas)
+    if not grid or any(not np.isfinite(a) or a<=0 for a in grid):
+        raise ValueError('All alpha values must be positive and finite')
+    losses=[]
+    indices=np.arange(len(x))
+    for alpha in grid:
+        errors=[]
+        for v in _folds(len(x),groups):
+            t=np.setdiff1d(indices,v)
+            if len(t)<3:
+                raise ValueError('Too few training scenes')
+            errors.extend(np.abs(_ridge(x[t],y[t],x[v],alpha)-y[v]).mean(axis=1))
+        losses.append(float(np.mean(errors)))
+    best=grid[int(np.argmin(losses))]
+    xm=x.mean(axis=0)
+    xs=x.std(axis=0)
+    xs[xs<1e-12]=1.
+    z=(x-xm)/xs
+    ym=y.mean(axis=0)
+    coef=np.linalg.solve(z.T@z+best*np.eye(z.shape[1]),z.T@(y-ym))
+    return SceneDesignPredictor(scales,xm,xs,ym,coef,best)
