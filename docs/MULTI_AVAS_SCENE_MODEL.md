@@ -46,6 +46,10 @@ model = fit_scene_predictor(x, y,
 # Pass a table containing the five supported design-metadata columns:
 # scene_type, detuning_cents, offset_s, geometry, spatial_variant
 new_scene_scores = model.predict_scenes(new_scene_table)
+from semanticavas.scene_model import save_scene_predictor, load_scene_predictor
+save_scene_predictor(model, 'scene_model.npz')
+restored = load_scene_predictor('scene_model.npz')
+
 
 ```
 
@@ -81,3 +85,5 @@ repository fixtures. The original WAV versions have not yet been recovered
 and verified for each listening session. No pilot ratings or WAV files are
 committed here. These findings therefore support a scene-design baseline,
 not an improvement in acoustic WAV prediction or independent-study transfer.
+
+The NPZ archive stores only coefficients, preprocessing parameters and the named scale/feature schema; it uses no pickle objects. A fitted pilot model should be kept private until its data rights and intended evaluation domain have been reviewed.
