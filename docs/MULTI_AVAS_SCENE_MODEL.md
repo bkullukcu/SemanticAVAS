@@ -40,6 +40,13 @@ by_scene, mean_reference, alphas = nested_scene_cv(x, y)
 by_family, family_reference, _ = nested_scene_cv(x, y, groups=families)
 print('Scene holdout MAE:', float(np.abs(by_scene-y).mean()))
 print('Family holdout MAE:', float(np.abs(by_family-y).mean()))
+from semanticavas.scene_model import fit_scene_predictor
+model = fit_scene_predictor(x, y,
+    ['intrusiveness_0_100', 'chaoticness_0_100'], groups=families)
+# Pass a table containing the five supported design-metadata columns:
+# scene_type, detuning_cents, offset_s, geometry, spatial_variant
+new_scene_scores = model.predict_scenes(new_scene_table)
+
 ```
 
 Each outer fold trains its own standardization and tunes ridge regularization
