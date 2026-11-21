@@ -119,6 +119,13 @@ def prepare_training(manifest_path: str | Path, ratings_path: str | Path,
         if not path.is_absolute():
             path = manifest_path.resolve().parent / path
         vector, meta = extract_wav(path, max_seconds=max_seconds)
+        if 'wav_sha256' in ordered.columns:
+            expected = getattr(row, 'wav_sha256')
+            if (not isinstance(expected, str) or len(expected.strip()) != 64 or
+                any(char not in '0123456789abcdef' for char in expected.strip().lower())):
+                raise ValueError('wav_sha256 requires a complete 64-character hexadecimal digest')
+            if meta['sha256'] != expected.strip().lower():
+                raise ValueError(f'WAV SHA-256 mismatch for stimulus {row.stimulus}')
         if meta['sha256'] in hashes:
             raise ValueError('The same WAV content is associated with multiple stimuli')
         hashes.add(meta['sha256'])
