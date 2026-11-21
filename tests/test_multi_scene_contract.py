@@ -102,3 +102,14 @@ def test_fit_new_scene_inference():
     assert np.isfinite(predicted.values).all()
     assert np.all((predicted.values >= 0) & (predicted.values <= 100))
     assert np.allclose(predicted.values, model.predict_features(encode_scene_design(new_scenes)))
+
+
+def test_scene_model_archive_roundtrip(tmp_path):
+    from semanticavas.scene_model import (
+        fit_scene_predictor, save_scene_predictor, load_scene_predictor)
+    x, y, _, families, _ = prepare_scene_ratings(_scene_trials(), ['rating'])
+    model = fit_scene_predictor(x, y, ['rating'], groups=families)
+    path = save_scene_predictor(model, tmp_path / 'scene.npz')
+    loaded = load_scene_predictor(path)
+    assert loaded.scales == model.scales
+    np.testing.assert_allclose(loaded.predict_features(x), model.predict_features(x))
