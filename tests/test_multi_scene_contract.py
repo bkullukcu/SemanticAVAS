@@ -89,3 +89,16 @@ def test_optional_wav_sha256_contract(tmp_path):
     pd.DataFrame(manifest).to_csv(mp,index=False)
     with pytest.raises(ValueError,match='SHA-256 mismatch'):
         prepare_training(mp,rp,['score'])
+
+
+def test_fit_new_scene_inference():
+    from semanticavas.scene_model import fit_scene_predictor, encode_scene_design
+    frame = _scene_trials()
+    x, y, _, families, _ = prepare_scene_ratings(frame, ['rating'])
+    model = fit_scene_predictor(x, y, ['rating'], groups=families)
+    new_scenes = frame.drop_duplicates('scene_id').iloc[:2]
+    predicted = model.predict_scenes(new_scenes)
+    assert list(predicted) == ['rating'] and predicted.shape == (2, 1)
+    assert np.isfinite(predicted.values).all()
+    assert np.all((predicted.values >= 0) & (predicted.values <= 100))
+    assert np.allclose(predicted.values, model.predict_features(encode_scene_design(new_scenes)))
