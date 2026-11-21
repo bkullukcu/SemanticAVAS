@@ -210,3 +210,46 @@ def fit_scene_predictor(x, y, scales, *, groups=None, alphas=DEFAULT_ALPHAS):
     ym=y.mean(axis=0)
     coef=np.linalg.solve(z.T@z+best*np.eye(z.shape[1]),z.T@(y-ym))
     return SceneDesignPredictor(scales,xm,xs,ym,coef,best)
+
+
+def save_scene_predictor(model, path):
+    """Store scene model as a pickle-free NPZ with an explicit feature schema."""
+    import json
+    from pathlib import Path
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    metadata = {'format_version': 1, 'feature_names': list(SCENE_FEATURES),
+                'scales': list(model.scales), 'alpha': float(model.alpha)}
+    np.savez_compressed(path, metadata=np.asarray(json.dumps(metadata, sort_keys=True)),
+                        x_mean=model.x_mean, x_std=model.x_std,
+                        y_mean=model.y_mean, coefficients=model.coefficients)
+    return path
+
+
+def load_scene_predictor(path):
+    """Read a validated scene-model NPZ without Python-object deserialisation."""
+    import json
+    with np.load(path, allow_pickle=False) as data:
+        fields = {'metadata', 'x_mean', 'x_std', 'y_mean', 'coefficients'}
+        if set(data.files) != fields:
+            raise ValueError('Invalid scene-model archive fields')
+        info = json.loads(str(data['metadata'].item()))
+        arrays = {name: np.asarray(data[name], dtype=float).copy()
+                  for name in fields - {'metadata'}}
+    scales = info.get('scales')
+    alpha = info.get('alpha')
+    n = len(SCENE_FEATURES)
+    if (info.get('format_version') != 1 or
+        info.get('feature_names') != list(SCENE_FEATURES) or
+        not isinstance(scales, list) or not scales or
+        any(not isinstance(value, str) or not value.strip() for value in scales) or
+        len(scales) != len(set(scales)) or
+        not isinstance(alpha, (int,float)) or not np.isfinite(alpha) or alpha <= 0 or
+        arrays['x_mean'].shape != (n,) or arrays['x_std'].shape != (n,) or
+        arrays['y_mean'].shape != (len(scales),) or
+        arrays['coefficients'].shape != (n,len(scales)) or
+        any(not np.isfinite(arr).all() for arr in arrays.values()) or
+        np.any(arrays['x_std'] <= 0)):
+        raise ValueError('Invalid scene-model schema or values')
+    return SceneDesignPredictor(tuple(scales), arrays['x_mean'], arrays['x_std'],
+                                arrays['y_mean'], arrays['coefficients'], float(alpha))
