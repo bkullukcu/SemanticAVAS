@@ -142,7 +142,25 @@ semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \\
   --missing-policy stimulus_mean --full-recording --output-dir fitted
 ```
 
-These options belong to the review branch until merged and released. The
+These options are available on the `ai-dev` development branch and will appear in a numbered release after release verification. The
 audio front end is uncalibrated digital audio, not psychoacoustic loudness
 or measured playback SPL. The synthetic tutorial is a software demonstration,
 not empirical evidence of rating prediction.
+
+## Multi-source scene-design pilot
+
+An optional [scene-design regression module](docs/MULTI_AVAS_SCENE_MODEL.md) adds
+participant-balanced training and nested scene-/design-family holdout for
+experimental parameters such as detuning, temporal offset, and spatial layout.
+It estimates scene-average ratings without extracting WAV features. In a
+nine-listener exploratory pilot (36 scenes, 290 presentations), the average
+five-scale MAE was 5.54 versus a training-mean reference of 6.93 for
+leave-one-scene-out validation, and 7.48 versus 7.35 when entire design
+families were held out. These evaluations describe distinct generalization
+tasks; the scene model is not an audio-to-rating predictor.
+
+For waveform training, an optional `wav_sha256` manifest column now verifies
+each WAV's content against the declared digest. The pilot archive used
+different audio revisions, so these pilot ratings have not been used to claim
+new waveform-prediction accuracy. The original WAVs, listener records and
+restricted trial tables are kept outside the public repository.
