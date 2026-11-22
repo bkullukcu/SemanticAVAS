@@ -1,4 +1,4 @@
-"""Regression contracts for the SoftwareX 01551 review revision.
+"""Regression checks for ranking consistency, audio windows and rating bounds.
 
 Fixtures are synthetic. They do not establish perceptual validity.
 """
