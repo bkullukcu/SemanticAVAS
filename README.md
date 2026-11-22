@@ -141,8 +141,3 @@ semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \
   --scales pleasant --scale-bounds '{"pleasant":[1,5]}' \
   --missing-policy stimulus_mean --full-recording --output-dir fitted
 ```
-
-These additions are included in v0.9.1. The previous v0.9.0 software archive
-remains a separate reference for that earlier source state. The audio descriptors measure
-uncalibrated digital signals, not psychoacoustic loudness or calibrated
-playback SPL. The synthetic tutorial demonstrates software operation.
