@@ -120,29 +120,29 @@ Training produces `semantic_model.npz`, `heldout_predictions.csv`, `audio_summar
 
 See [WAV prediction](docs/WAV_PREDICTION.md) for data layouts, examples, model interpretation and Python use. The training WAVs and questionnaire scales determine the application domain of the fitted model.
 
-## Scope of the prediction model and SoftwareX peer-review revision
+## Prediction methods and validation
 
-The catalogue path only ranks sounds **already evaluated by listeners**. The
-experimental WAV path can return an estimate for an unrated WAV after it has
-been trained on paired recordings and listener ratings; it has **not** shown
-reliable transfer across independent sound-source groups. In the 35-sound
-study, leave-one-sound-out MAE was 13.41 for ridge and 13.58 for the
-training mean, while source-block MAE was 16.39 versus 15.41. A revised,
-restricted-data comparison with SVR and random forests is documented in
-[peer-review methods](docs/SOFTWAREX_REVIEW_REVISION.md).
+The catalogue path ranks sounds already evaluated by listeners. The WAV path
+uses paired recordings and listener ratings to estimate semantic scores for
+further sounds. Generalization depends on the recording collection. For the
+35-sound study, leave-one-sound-out MAE was 13.41 for ridge regression and
+13.58 for the training-mean reference. Source-block MAE was 16.39 versus
+15.41, respectively. Comparisons with SVR and random forests, input
+validation and feature extraction are documented in
+[prediction evaluation](docs/PREDICTION_EVALUATION.md).
 
-The catalogue and WAV ranking APIs now share a 100-point default scale width
-for 0--100 questionnaires. The WAV model also accepts explicit alternative
-rating bounds (for example, 1--5), full-WAV extraction, and explicit
-missing-cell imputation, without changing old model files' default behaviour:
+The catalogue and WAV-ranking APIs use a default scale width of 100 for
+0--100 questionnaires. WAV training also accepts explicitly declared rating
+bounds (such as 1--5), optional full-recording extraction, and a declared
+policy for missing rating cells:
 
 ```bash
-semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \\
-  --scales pleasant --scale-bounds '{"pleasant":[1,5]}' \\
+semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \
+  --scales pleasant --scale-bounds '{"pleasant":[1,5]}' \
   --missing-policy stimulus_mean --full-recording --output-dir fitted
 ```
 
-These options belong to the review branch until merged and released. The
-audio front end is uncalibrated digital audio, not psychoacoustic loudness
-or measured playback SPL. The synthetic tutorial is a software demonstration,
-not empirical evidence of rating prediction.
+The development branch contains these additions; the archived v0.9.0
+release retains its original feature set. The audio descriptors measure
+uncalibrated digital signals, not psychoacoustic loudness or calibrated
+playback SPL. The synthetic tutorial demonstrates software operation.

@@ -1,8 +1,6 @@
-# SoftwareX peer-review revision: methods and limitations
+# Prediction methodology, input contracts and evaluation
 
-This document accompanies manuscript SOFTX-D-26-01551. The original
-v0.9.0 release remains available at DOI 10.5281/zenodo.23661611.
-The revision branch is **not** a new archived software release.
+This document describes input validation, audio feature extraction, and empirical evaluation for the current development code. The v0.9.0 release is archived at DOI 10.5281/zenodo.23661611. Later development commits require their own release archive.
 
 ## Two distinct operations
 
@@ -60,7 +58,7 @@ No playback gain calibration, time-varying descriptors, perceptual
 loudness, sharpness, roughness, fluctuation strength or modulation
 descriptors are implemented in the present ten-feature front end.
 
-## Re-analysis on the restricted original study data
+## Empirical comparison on a restricted dataset
 
 Thirty-five verified WAVs, 20 listeners, seven 0--100 scales and 4,896
 observed rating cells were analysed without publishing the recordings,
