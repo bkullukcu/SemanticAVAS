@@ -1,5 +1,5 @@
 """SemanticAVAS research software."""
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 from .core import *
 from .empirical import (validate_semantic_ratings, aggregate_semantics, bootstrap_profiles,
     rank_existing_sounds, bootstrap_target, leave_one_participant_out,
