@@ -142,7 +142,7 @@ semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \
   --missing-policy stimulus_mean --full-recording --output-dir fitted
 ```
 
-The development branch contains these additions; the archived v0.9.1
-release retains its original feature set. The audio descriptors measure
+These additions are included in v0.9.1. The previous v0.9.0 software archive
+remains a separate reference for that earlier source state. The audio descriptors measure
 uncalibrated digital signals, not psychoacoustic loudness or calibrated
 playback SPL. The synthetic tutorial demonstrates software operation.
