@@ -146,7 +146,8 @@ def test_recorded_training_provenance(sample):
         capture_output=True,text=True,timeout=110)
     assert train.returncode == 0,train.stderr
     report=json.loads((sample/'trained/validation.json').read_text())
-    assert report['software_version'] == '0.9.0'
+    from semanticavas import __version__
+    assert report['software_version'] == __version__
     assert len(report['ratings_sha256']) == 64 and len(report['manifest_sha256']) == 64
 
 

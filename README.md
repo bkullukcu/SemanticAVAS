@@ -2,7 +2,7 @@
 
 **Listener-based semantic analysis, target matching and WAV-to-semantic prediction for vehicle warning sounds.**
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23661611.svg)](https://doi.org/10.5281/zenodo.23661611)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24449522.svg)](https://doi.org/10.5281/zenodo.24449522)
 
 SemanticAVAS groups perceptual ratings by listener and evaluated sound, builds profiles on named semantic scales, and compares those profiles with a user-defined target. The package also includes sound-prototype synthesis and a regression workflow that learns acoustic-to-semantic mappings from paired recordings and listener ratings. Catalogue ranking and prediction use separate evaluation workflows.
 
@@ -142,7 +142,7 @@ semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \
   --missing-policy stimulus_mean --full-recording --output-dir fitted
 ```
 
-The development branch contains these additions; the archived v0.9.1
-release retains its original feature set. The audio descriptors measure
+These additions are included in v0.9.1. The previous v0.9.0 software archive
+remains a separate reference for that earlier source state. The audio descriptors measure
 uncalibrated digital signals, not psychoacoustic loudness or calibrated
 playback SPL. The synthetic tutorial demonstrates software operation.
