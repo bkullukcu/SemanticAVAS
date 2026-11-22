@@ -119,3 +119,30 @@ semanticavas predict-wav \
 Training produces `semantic_model.npz`, `heldout_predictions.csv`, `audio_summary.csv`, and `validation.json`. Prediction reports the estimated rating on each named scale, whether a descriptor exceeds the observed training range, and its distance to the nearest training sound in standardized feature space. The validation report compares held-out mean absolute error against the training-mean baseline and records the 90th-percentile absolute error observed across held-out sounds.
 
 See [WAV prediction](docs/WAV_PREDICTION.md) for data layouts, examples, model interpretation and Python use. The training WAVs and questionnaire scales determine the application domain of the fitted model.
+
+## Prediction methods and validation
+
+The catalogue path ranks sounds already evaluated by listeners. The WAV path
+uses paired recordings and listener ratings to estimate semantic scores for
+further sounds. Generalization depends on the recording collection. For the
+35-sound study, leave-one-sound-out MAE was 13.41 for ridge regression and
+13.58 for the training-mean reference. Source-block MAE was 16.39 versus
+15.41, respectively. Comparisons with SVR and random forests, input
+validation and feature extraction are documented in
+[prediction evaluation](docs/PREDICTION_EVALUATION.md).
+
+The catalogue and WAV-ranking APIs use a default scale width of 100 for
+0--100 questionnaires. WAV training also accepts explicitly declared rating
+bounds (such as 1--5), optional full-recording extraction, and a declared
+policy for missing rating cells:
+
+```bash
+semanticavas train-predictor --manifest manifest.csv --ratings ratings.csv \
+  --scales pleasant --scale-bounds '{"pleasant":[1,5]}' \
+  --missing-policy stimulus_mean --full-recording --output-dir fitted
+```
+
+The development branch contains these additions; the archived v0.9.0
+release retains its original feature set. The audio descriptors measure
+uncalibrated digital signals, not psychoacoustic loudness or calibrated
+playback SPL. The synthetic tutorial demonstrates software operation.

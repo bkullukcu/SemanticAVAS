@@ -66,7 +66,7 @@ def bootstrap_profiles(frame,scales,n_boot=2000,seed=2026):
 def rank_existing_sounds(means,target,*,weights=None,scale_ranges=None):
     cols=list(target)
     if not cols or not set(cols).issubset(means.columns):raise ValueError('unknown scales')
-    w=np.asarray([1 if weights is None else weights[c] for c in cols],float)
+    w=np.asarray([1 if weights is None else weights.get(c,1.) for c in cols],float)
     width=np.asarray([100 if scale_ranges is None else scale_ranges[c] for c in cols],float)
     t=np.asarray([target[c] for c in cols],float)
     if not np.isfinite(t).all() or not np.isfinite(w).all() or not np.isfinite(width).all() or np.any(w<0) or w.sum()<=0 or np.any(width<=0):
