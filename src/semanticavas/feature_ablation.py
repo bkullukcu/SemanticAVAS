@@ -23,7 +23,7 @@ TONAL_NAMES = ("spectral_peak_local_excess_db", "dominant_tonal_fraction")
 TEMPORAL_NAMES = ("frame_rms_coefficient_of_variation", "mean_positive_spectral_flux")
 EXTRA_NAMES = TONAL_NAMES + TEMPORAL_NAMES
 FEATURE_SETS = {"E0": (), "E1": TONAL_NAMES, "E2": TEMPORAL_NAMES}
-DEFAULT_GRIDS = {"ridge": (0.1, 10., 100.), "svr": (0.1, 1., 10.), "pls": (1, 2, 3)}
+DEFAULT_GRIDS = {"ridge": (0.1, 1., 10., 100., 1000.), "svr": (0.1, 1., 10.), "pls": (1, 2, 3)}
 
 
 def _convert_pcm(array):
@@ -125,8 +125,7 @@ def _model(name, parameter):
 
 def _inner_folds(indices, groups):
     if groups is None:
-        shuffled = np.random.default_rng(2026).permutation(indices)
-        return [part for part in np.array_split(shuffled, min(4, len(shuffled))) if len(part)]
+        return [part for part in np.array_split(indices, min(4, len(indices))) if len(part)]
     return [indices[groups[indices] == key] for key in np.unique(groups[indices])]
 
 
