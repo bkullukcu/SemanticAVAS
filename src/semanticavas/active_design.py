@@ -155,7 +155,7 @@ def group_conformal_radius(observed, predictions, groups, *, alpha=.10):
     predictions=_two_dimensional(predictions,'predicted calibration')
     g=np.asarray(groups,str)
     if (observed.shape!=predictions.shape or len(g)!=len(observed)
-            or len(set(g))!=len(np.unique(g)) and False):
+            or pd.isna(np.asarray(groups, dtype=object)).any()):
         raise ValueError('Calibration arrays must be aligned')
     if not 0<alpha<1:
         raise ValueError('alpha must be in (0,1)')
@@ -185,3 +185,84 @@ def sample_weight_from_sem(sem, *, floor=2., max_ratio=10.):
     raw=1./(values**2+floor**2)
     raw=np.minimum(raw,raw.min()*max_ratio)
     return raw/raw.mean()
+
+
+@dataclass
+class ListenerWeightedRidge:
+    """Ridge fitted with training-only participant SEM weights."""
+    x_mean: np.ndarray
+    x_scale: np.ndarray
+    y_mean: np.ndarray
+    coefficients: np.ndarray
+
+    def predict(self, features):
+        x=_two_dimensional(features,'weighted ridge features')
+        if x.shape[1]!=len(self.x_mean):
+            raise ValueError('Feature dimension mismatch')
+        return ((x-self.x_mean)/self.x_scale)@self.coefficients+self.y_mean
+
+
+def fit_listener_weighted_ridge(features, responses, sem, *, alpha=10., floor=2.):
+    """Fit ridge with regularized inverse-SEM weights derived from training listeners."""
+    x=_two_dimensional(features,'features')
+    y=_two_dimensional(responses,'responses')
+    if len(x)!=len(y) or len(x)<3 or not np.isfinite(alpha) or alpha<=0:
+        raise ValueError('At least three aligned rows and positive alpha required')
+    w=sample_weight_from_sem(sem,floor=floor)
+    if len(w)!=len(x):
+        raise ValueError('One observed SEM per training sound required')
+    mean=np.average(x,axis=0,weights=w)
+    centered=x-mean
+    scale=np.sqrt(np.average(centered**2,axis=0,weights=w))
+    scale[scale<1e-12]=1.
+    z=centered/scale
+    ym=np.average(y,axis=0,weights=w)
+    beta=np.linalg.solve((z.T*w)@z+float(alpha)*np.eye(z.shape[1]),
+                         (z.T*w)@(y-ym))
+    return ListenerWeightedRidge(mean,scale,ym,beta)
+
+
+def evaluate_listener_weighting(features, responses, sem, groups, *,
+                                alphas=(.1,1.,10.,100.), floor=2.,
+                                bounds=(0.,100.)):
+    """Source-group-nested comparison of weighted ridge versus training mean.
+
+    Inner and outer test-response SEM values are never used for fitting.
+    """
+    x=_two_dimensional(features,'features')
+    y=_two_dimensional(responses,'responses')
+    errors=np.asarray(sem,float)
+    g=np.asarray(groups,str)
+    if (len(y)!=len(x) or errors.shape!=(len(x),)
+            or len(g)!=len(x) or len(np.unique(g))<3):
+        raise ValueError('Aligned sounds/SEM and at least three groups required')
+    lo=np.broadcast_to(np.asarray(bounds[0],float),(y.shape[1],))
+    hi=np.broadcast_to(np.asarray(bounds[1],float),(y.shape[1],))
+    all_rows=np.arange(len(x))
+    rows=[]
+    for withheld in np.unique(g):
+        test=all_rows[g==withheld]
+        train=all_rows[g!=withheld]
+        choices=[]
+        for alpha in alphas:
+            losses=[]
+            for inner_source in np.unique(g[train]):
+                inner_test=train[g[train]==inner_source]
+                fit=train[g[train]!=inner_source]
+                if len(fit)<3:raise ValueError('Insufficient independent inner training sounds')
+                mdl=fit_listener_weighted_ridge(x[fit],y[fit],errors[fit],
+                                                alpha=alpha,floor=floor)
+                pred=np.clip(mdl.predict(x[inner_test]),lo,hi)
+                losses.append(float(np.abs(pred-y[inner_test]).mean()))
+            choices.append(float(np.mean(losses)))
+        chosen=float(alphas[int(np.argmin(choices))])
+        model=fit_listener_weighted_ridge(x[train],y[train],errors[train],
+                                          alpha=chosen,floor=floor)
+        predicted=np.clip(model.predict(x[test]),lo,hi)
+        baseline=np.repeat(y[train].mean(0)[None,:],len(test),axis=0)
+        for j,i in enumerate(test):
+            rows.append({'sample_index':int(i),'source_group':str(withheld),
+                         'selected_alpha':chosen,
+                         'mae':float(np.abs(predicted[j]-y[i]).mean()),
+                         'baseline_mae':float(np.abs(baseline[j]-y[i]).mean())})
+    return pd.DataFrame(rows)
