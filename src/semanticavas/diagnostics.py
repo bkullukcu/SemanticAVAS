@@ -143,6 +143,48 @@ def listener_variability(ratings: pd.DataFrame, scales, *, n_splits=200, seed=20
     return pd.DataFrame(rows), pd.DataFrame(reliability)
 
 
+
+def fit_listener_random_intercepts(ratings: pd.DataFrame, scales):
+    """Optional mixed-effects estimate of listener offsets after sound effects.
+
+    Models rating ~ categorical stimulus + random participant intercept.
+    The listener variance describes response-style heterogeneity,
+    not accuracy of an acoustic-to-semantic predictor.
+    """
+    cols=('participant','stimulus',*tuple(scales))
+    if not set(cols).issubset(ratings.columns):
+        raise ValueError('Missing participant, stimulus or rating columns')
+    data=ratings[list(cols)].copy()
+    if data[['participant','stimulus']].isna().any().any():
+        raise ValueError('Missing rating identifiers')
+    grouped=data.groupby(['participant','stimulus'],as_index=False)[list(scales)].mean()
+    if grouped.participant.nunique()<4 or grouped.stimulus.nunique()<3:
+        raise ValueError('Requires at least four listeners and three stimuli')
+    try:
+        import statsmodels.formula.api as smf
+    except ImportError as exc:
+        raise ImportError('Install optional statsmodels for mixed-effects analysis') from exc
+    out=[]
+    for name in scales:
+        table=grouped[['participant','stimulus',name]].dropna()
+        table=table.rename(columns={name:'rating'})
+        if table.participant.nunique()<4 or table.stimulus.nunique()<3:
+            raise ValueError(f'{name}: insufficient observed participant responses')
+        model=smf.mixedlm('rating ~ C(stimulus)', data=table,
+                          groups=table['participant'])
+        fit=model.fit(reml=True,method='powell',disp=False)
+        listener_var=float(np.asarray(fit.cov_re,dtype=float)[0,0])
+        residual_var=float(fit.scale)
+        denominator=listener_var+residual_var
+        out.append({'scale':name,'n_observations':len(table),
+                    'n_listeners':table.participant.nunique(),
+                    'participant_intercept_variance':listener_var,
+                    'residual_variance':residual_var,
+                    'participant_intercept_icc':(
+                        listener_var/denominator if denominator>0 else np.nan),
+                    'converged':bool(fit.converged)})
+    return pd.DataFrame(out)
+
 def main(argv=None):
     p = argparse.ArgumentParser(description='Inspect held-out errors and listener disagreement')
     p.add_argument('--predictions', required=True)
@@ -150,6 +192,7 @@ def main(argv=None):
     p.add_argument('--scales', nargs='+', required=True)
     p.add_argument('--output-dir', required=True)
     p.add_argument('--bootstrap', type=int, default=2000)
+    p.add_argument('--mixed-effects', action='store_true')
     args = p.parse_args(argv)
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -163,6 +206,9 @@ def main(argv=None):
             pd.read_csv(args.ratings), args.scales)
         per_sound.to_csv(out / 'listener_variability.csv', index=False)
         reliability.to_csv(out / 'listener_split_half.csv', index=False)
+        if args.mixed_effects:
+            fit_listener_random_intercepts(pd.read_csv(args.ratings), args.scales).to_csv(
+                out / 'listener_mixed_effects.csv', index=False)
     (out / 'method.json').write_text(json.dumps({
         'paired_bootstrap_units': 'source when declared; otherwise sound',
         'interval': 'percentile, descriptive',
