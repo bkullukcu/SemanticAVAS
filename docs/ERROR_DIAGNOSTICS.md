@@ -5,23 +5,23 @@ predictions and, optionally, observed participant-level ratings.
 
 Run from a private workspace:
 
-\`\`\`bash
+```bash
 python -m semanticavas.diagnostics \
   --predictions /private/ablation/outer_predictions.csv \
   --ratings /private/ratings.csv \
   --scales truck_like annoying \
   --output-dir /private/diagnostics
-\`\`\`
+```
 
 Reports:
 
-- \`models.csv\`: sound-weighted MAE and paired source-balanced bootstrap
+- `models.csv`: sound-weighted MAE and paired source-balanced bootstrap
   intervals relative to the outer-training mean
-- \`scales.csv\`: scale-wise MAE, bias and out-of-sample R²
-- \`sources.csv\`: error and baseline for each withheld recording family
-- \`listener_variability.csv\`: observed listener disagreement, SEM and IQR,
+- `scales.csv`: scale-wise MAE, bias and out-of-sample R²
+- `sources.csv`: error and baseline for each withheld recording family
+- `listener_variability.csv`: observed listener disagreement, SEM and IQR,
   after balancing repeated presentations
-- \`listener_split_half.csv\`: random split-half correlation across sounds
+- `listener_split_half.csv`: random split-half correlation across sounds
 
 Intervals are **descriptive** with a small number of source groups. Source
 bootstrap replicates entire groups, not their individual recordings. Do
@@ -35,7 +35,7 @@ collection before coverage claims can be made.
 
 ## Optional mixed-effects assessment
 
-With \`statsmodels\` installed, add \`--mixed-effects\` to the diagnostics
+With `statsmodels` installed, add `--mixed-effects` to the diagnostics
 CLI. The formula includes fixed stimulus effects and a random
 participant intercept after repeated-trial balancing. It reports
 participant-intercept variance, residual variance and an ICC.
