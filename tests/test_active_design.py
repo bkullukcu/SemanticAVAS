@@ -44,3 +44,19 @@ def test_sem_weighting_and_validation():
     assert w[0]>w[-1]
     with pytest.raises(ValueError):
         sample_weight_from_sem([-1,1])
+
+
+def test_weighted_ridge_and_nested_source_protocol():
+    from semanticavas.active_design import (
+        fit_listener_weighted_ridge,evaluate_listener_weighting)
+    rng=np.random.default_rng(17)
+    x=rng.normal(size=(12,3))
+    y=np.column_stack([40+2*x[:,0],50-3*x[:,1]])
+    sem=np.where(np.arange(12)%3==0,8.,2.)
+    groups=np.repeat(list('abcd'),3)
+    fitted=fit_listener_weighted_ridge(x,y,sem,alpha=1.)
+    assert fitted.predict(x[:2]).shape==(2,2)
+    held=evaluate_listener_weighting(x,y,sem,groups,alphas=(.1,1.))
+    assert len(held)==12
+    assert set(held.source_group)==set('abcd')
+    assert np.isfinite(held.mae).all()
