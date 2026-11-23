@@ -31,3 +31,14 @@ using those same groups. These outputs may contain restricted identifiers.
 The observed-rating summaries describe measurement variability rather than
 predicted-score uncertainty. The latter needs an independent calibration
 collection before coverage claims can be made.
+
+
+## Optional mixed-effects assessment
+
+With \`statsmodels\` installed, add \`--mixed-effects\` to the diagnostics
+CLI. The formula includes fixed stimulus effects and a random
+participant intercept after repeated-trial balancing. It reports
+participant-intercept variance, residual variance and an ICC.
+This is an exploratory measure of listener-specific response offsets;
+it does not measure predictive accuracy on an unseen recording source.
+Examine the reported convergence flag before interpreting estimates.
