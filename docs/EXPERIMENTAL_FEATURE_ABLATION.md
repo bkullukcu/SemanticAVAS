@@ -45,7 +45,7 @@ originally imputed and unmodified datasets must not be silently mixed.
 
 ## Model comparison
 
-Ridge (α = 0.1, 10, 100), RBF-SVR (C = 0.1, 1, 10) and PLS
+Ridge (α = 0.1, 1, 10, 100, 1000), RBF-SVR (C = 0.1, 1, 10) and PLS
 (n_components = 1, 2, 3) are tuned in grouped **inner** folds. Their
 standardization is fitted on each training fold. Each outer holdout
 uses a training-mean comparator and optional explicit response bounds.
