@@ -47,3 +47,11 @@ def test_repeated_trials_are_balanced_before_sem():
 def test_missing_columns_are_rejected():
     with pytest.raises(ValueError, match='Missing prediction'):
         audit_predictions(pd.DataFrame({'sample_index':[0]}), ['a'])
+
+
+def test_mixed_effects_requires_sufficient_independent_listeners():
+    from semanticavas.diagnostics import fit_listener_random_intercepts
+    f=pd.DataFrame({'participant':['a','b','c'],'stimulus':['S1']*3,
+                    'pleasant':[20,30,40]})
+    with pytest.raises(ValueError,match='at least four'):
+        fit_listener_random_intercepts(f,['pleasant'])
