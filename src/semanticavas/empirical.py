@@ -130,7 +130,21 @@ def _ridge_fit_predict(train_x,train_y,test_x,alpha):
     return vx@beta+ym
 
 
-def nested_leave_one_sound_out(features,targets,alpha_grid=(.1,1.,10.,100.,1000.),inner_splits=4):
+def _bound_prediction(predictions, bounds):
+    """Apply declared response bounds to held-out predictions, including inner folds."""
+    if bounds is None:
+        return predictions
+    lower, upper = [np.asarray(v, dtype=float) for v in bounds]
+    k = predictions.shape[-1]
+    if (lower.shape != (k,) or upper.shape != (k,)
+            or not np.isfinite(lower).all() or not np.isfinite(upper).all()
+            or np.any(lower >= upper)):
+        raise ValueError('prediction bounds must contain finite lower/upper arrays per scale')
+    return np.clip(predictions, lower, upper)
+
+
+def nested_leave_one_sound_out(features,targets,alpha_grid=(.1,1.,10.,100.,1000.),inner_splits=4,
+                               prediction_bounds=None):
     """True outer sound-level LOOCV; features standardized and alpha tuned inside folds."""
     x=np.asarray(features,float);y=np.asarray(targets,float)
     if x.ndim!=2 or y.ndim!=2 or len(x)!=len(y) or len(x)<10 or not np.isfinite(x).all() or not np.isfinite(y).all():
@@ -143,16 +157,17 @@ def nested_leave_one_sound_out(features,targets,alpha_grid=(.1,1.,10.,100.,1000.
             errors=[]
             for va in folds:
                 it=np.setdiff1d(tr,va)
-                pred=_ridge_fit_predict(x[it],y[it],x[va],float(alpha))
+                pred=_bound_prediction(_ridge_fit_predict(x[it],y[it],x[va],float(alpha)), prediction_bounds)
                 errors.append(abs(y[va]-pred).mean())
             loss.append(float(np.mean(errors)))
         a=float(alpha_grid[int(np.argmin(loss))]);alphas.append(a)
-        out[heldout]=_ridge_fit_predict(x[tr],y[tr],x[[heldout]],a)[0]
+        out[heldout]=_bound_prediction(_ridge_fit_predict(x[tr],y[tr],x[[heldout]],a), prediction_bounds)[0]
         baseline[heldout]=y[tr].mean(0)
     return out,baseline,np.array(alphas)
 
 
-def nested_leave_one_group_out(features,targets,groups,alpha_grid=(.1,1.,10.,100.,1000.)):
+def nested_leave_one_group_out(features,targets,groups,alpha_grid=(.1,1.,10.,100.,1000.),
+                              prediction_bounds=None):
     """Source-blocked outer CV and source-blocked alpha tuning.
 
     The caller must provide reliable source group identifiers; unknown siblings
@@ -173,10 +188,10 @@ def nested_leave_one_group_out(features,targets,groups,alpha_grid=(.1,1.,10.,100
             for val_group in inner_groups:
                 it=tr[g[tr]!=val_group];iv=tr[g[tr]==val_group]
                 if len(it)<3:raise ValueError('too few inner training sounds')
-                estimate=_ridge_fit_predict(x[it],y[it],x[iv],float(alpha))
+                estimate=_bound_prediction(_ridge_fit_predict(x[it],y[it],x[iv],float(alpha)), prediction_bounds)
                 fold_losses.append(np.mean(abs(estimate-y[iv])))
             scores.append(float(np.mean(fold_losses)))
         a=float(alpha_grid[int(np.argmin(scores))]);selected[te]=a
-        pred[te]=_ridge_fit_predict(x[tr],y[tr],x[te],a)
+        pred[te]=_bound_prediction(_ridge_fit_predict(x[tr],y[tr],x[te],a), prediction_bounds)
         base[te]=y[tr].mean(0)
     return pred,base,selected
