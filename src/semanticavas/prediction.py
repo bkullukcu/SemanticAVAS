@@ -131,7 +131,7 @@ def prepare_training(manifest_path: str | Path, ratings_path: str | Path,
     return x, y, fam, pd.DataFrame(meta_rows)
 
 
-def _choose_alpha(x, y, groups, alphas):
+def _choose_alpha(x, y, groups, alphas, prediction_bounds):
     """Tune final-fit alpha using only training sounds, with group-aware folds."""
     n = len(x)
     folds = ([np.flatnonzero(groups == g) for g in np.unique(groups)]
@@ -143,7 +143,7 @@ def _choose_alpha(x, y, groups, alphas):
             train = np.setdiff1d(np.arange(n), test)
             if len(train) < 3:
                 raise ValueError('Too few training sounds for inner validation')
-            prediction = np.clip(_ridge_fit_predict(x[train], y[train], x[test], alpha), 0, 100)
+            prediction = np.clip(_ridge_fit_predict(x[train], y[train], x[test], alpha), *prediction_bounds)
             fold_errors.append(float(np.abs(prediction - y[test]).mean()))
         losses.append(float(np.mean(fold_errors)))
     return float(alphas[int(np.argmin(losses))])
@@ -206,15 +206,18 @@ def train_wav_predictor(manifest_path, ratings_path, scales, *, max_seconds=5.0,
     x, y, groups, audio_table = prepare_training(
         manifest_path, ratings_path, scales, max_seconds=max_seconds,
         scale_bounds=scale_bounds, missing_policy=missing_policy)
-    if groups is None:
-        cv_pred, cv_baseline, cv_alpha = nested_leave_one_sound_out(x, y, alpha_grid=alphas)
-        cv_method = 'nested_leave_one_sound_out'
-    else:
-        cv_pred, cv_baseline, cv_alpha = nested_leave_one_group_out(x, y, groups, alpha_grid=alphas)
-        cv_method = 'nested_leave_one_family_out'
     limits = {name: (0., 100.) if scale_bounds is None else tuple(scale_bounds[name]) for name in scales}
     lower = np.asarray([limits[name][0] for name in scales])
     upper = np.asarray([limits[name][1] for name in scales])
+    prediction_bounds = (lower, upper)
+    if groups is None:
+        cv_pred, cv_baseline, cv_alpha = nested_leave_one_sound_out(
+            x, y, alpha_grid=alphas, prediction_bounds=prediction_bounds)
+        cv_method = 'nested_leave_one_sound_out'
+    else:
+        cv_pred, cv_baseline, cv_alpha = nested_leave_one_group_out(
+            x, y, groups, alpha_grid=alphas, prediction_bounds=prediction_bounds)
+        cv_method = 'nested_leave_one_family_out'
     cv_pred = np.clip(cv_pred, lower, upper)
     absolute = np.abs(cv_pred - y)
     baseline_absolute = np.abs(cv_baseline - y)
@@ -235,7 +238,7 @@ def train_wav_predictor(manifest_path, ratings_path, scales, *, max_seconds=5.0,
         'missing_policy': missing_policy,
         'feature_extractor_full_recording': max_seconds is None,
     }
-    alpha = _choose_alpha(x, y, groups, alphas)
+    alpha = _choose_alpha(x, y, groups, alphas, prediction_bounds)
     x_mean = x.mean(axis=0)
     x_scale = x.std(axis=0)
     x_scale[x_scale < 1e-12] = 1.0
