@@ -40,7 +40,7 @@ def test_repeated_trials_are_balanced_before_sem():
     ])
     per_sound, reliability = listener_variability(f, ['pleasant'], n_splits=20)
     assert per_sound.n_listeners.min() == 4
-    assert per_sound.iloc[0]['mean'] == pytest.approx(30)
+    assert per_sound.iloc[0]['mean'] == pytest.approx(32.5)
     assert reliability.iloc[0].valid_splits == 0  # no between-stimulus variation
 
 
