@@ -34,6 +34,16 @@ exchangeable independent source-group calibration data.
 
 ## Listener-aware experimental weighting
 
+`fit_listener_weighted_ridge` takes per-sound SEM estimates calculated
+**only from the training listeners**. `evaluate_listener_weighting`
+performs source-group-nested tuning and outer evaluation against a training
+mean. Regularized inverse-SEM weighting reduces the leverage of noisy
+stimulus means but cannot guarantee a predictive improvement. This model
+has not been calibrated or evaluated on the restricted 35-WAV collection;
+keep it separate from the released predictor.
+
+## Weighting assumptions
+
 \`sample_weight_from_sem\` transforms measured SEM estimates into bounded
 inverse-variance weights. These weights must be calculated from the
 training data only during CV; they have not been shown to improve
